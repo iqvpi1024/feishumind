@@ -1,0 +1,157 @@
+# ==========================================
+# FeishuMind .gitignore
+# Python + FastAPI 标准配置
+# ==========================================
+
+# ============ Python ============
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# C extensions
+*.pyx
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PIPFILE.lock
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# ============ 虚拟环境 ============
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.env.local
+.env.*.local
+
+# ============ IDE ============
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+.history/
+
+# ============ Jupyter Notebook ============
+.ipynb_checkpoints
+*.ipynb
+
+# ============ mypy ============
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ============ ruff ============
+.ruff_cache/
+
+# ============ 日志文件 ============
+logs/
+*.log
+log/
+
+# ============ 数据库 ============
+*.db
+*.sqlite
+*.sqlite3
+feishumind.db
+
+# ============ 模型和向量存储 ============
+models/
+*.gguf
+*.bin
+*.safetensors
+vector_store/
+faiss_index/
+embeddings/
+skill_packs/.tmp/
+
+# ============ 备份文件 ============
+backups/
+*.bak
+*.backup
+*.tmp
+
+# ============ 操作系统 ============
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ============ 敏感信息 ============
+*.pem
+*.key
+*.crt
+secrets/
+credentials.json
+.auth_tokens
+
+# ============ 部署相关 ============
+deployments/docker/.env
+deployments/k8s/secrets/
+
+# ============ 文档生成 ============
+docs/_build/
+site/
+
+# ============ 其他 ============
+.Poland
+*.pid
+*.seed
+*.pid.lock
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/extensions.json
