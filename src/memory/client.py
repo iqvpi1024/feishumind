@@ -8,7 +8,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from mem0 import Memory
+from mem0 import Memory, MemoryClient as Mem0Client
 from src.memory.config import get_memory_config
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,7 @@ class MemoryClient:
             config: 记忆系统配置，默认使用全局配置
         """
         self.config = config or get_memory_config()
+        self._use_cloud_api = False  # 默认值
 
         if not self.config.enabled:
             logger.warning("Memory system is disabled in config")
@@ -51,23 +52,45 @@ class MemoryClient:
 
         try:
             # 初始化 Mem0 客户端
-            # TODO: 根据配置选择不同的向量存储后端
-            self._client = Memory.from_config(
-                {
-                    "vector_store": {
-                        "type": self.config.vector_store,
-                        "params": {
-                            "embedding_model": self.config.embedding_model,
-                        }
-                    },
-                    "history_db_path": self.config.database_path,
-                }
-            )
-            logger.info(
-                f"Memory client initialized with {self.config.vector_store} backend"
-            )
+            # 优先使用 Mem0 云服务（如果配置了 API Key）
+            if self.config.mem0_api_key:
+                # 使用 Mem0 云服务 (MemoryClient)
+                logger.info(f"Initializing Mem0 Cloud client with API key: {self.config.mem0_api_key[:10]}...")
+                host = self.config.mem0_api_base or "https://api.mem0.ai"
+                logger.info(f"Mem0 Cloud host: {host}")
+                try:
+                    self._client = Mem0Client(
+                        api_key=self.config.mem0_api_key,
+                        host=host
+                    )
+                    self._use_cloud_api = True
+                    logger.info(f"Memory client initialized with Mem0 Cloud service at {host}")
+                except Exception as cloud_error:
+                    logger.error(f"Failed to initialize Mem0 Cloud client: {cloud_error}")
+                    logger.error(f"Cloud error type: {type(cloud_error).__name__}")
+                    raise
+            else:
+                # 使用本地向量存储
+                self._client = Memory.from_config(
+                    {
+                        "vector_store": {
+                            "type": self.config.vector_store,
+                            "params": {
+                                "embedding_model": self.config.embedding_model,
+                            }
+                        },
+                        "history_db_path": self.config.database_path,
+                    }
+                )
+                self._use_cloud_api = False
+                logger.info(
+                    f"Memory client initialized with {self.config.vector_store} backend"
+                )
         except Exception as e:
             logger.error(f"Failed to initialize memory client: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             self._client = None
             raise
 
@@ -136,11 +159,24 @@ class MemoryClient:
 
         try:
             # 调用 Mem0 添加记忆
-            result = self._client.add(
-                sanitized_content,
-                user_id=user_id,
-                metadata=memory_metadata,
-            )
+            if self._use_cloud_api:
+                # 使用云服务 API
+                # messages 参数需要是字典列表
+                result = self._client.add(
+                    messages=[{
+                        "role": "user",
+                        "content": sanitized_content,
+                    }],
+                    user_id=user_id,
+                    metadata=memory_metadata,
+                )
+            else:
+                # 使用本地存储 API
+                result = self._client.add(
+                    sanitized_content,
+                    user_id=user_id,
+                    metadata=memory_metadata,
+                )
 
             memory_id = result.get("id", f"mem_{datetime.utcnow().timestamp()}")
             logger.info(
@@ -200,11 +236,26 @@ class MemoryClient:
 
         try:
             # 调用 Mem0 搜索
-            results = self._client.search(
-                query=query,
-                user_id=user_id,
-                limit=limit * 2,  # 多取一些，后续过滤
-            )
+            if self._use_cloud_api:
+                # 云服务 API 需要使用 filters
+                search_params = {
+                    "query": query,
+                    "limit": limit * 2,
+                }
+                # 如果指定了 user_id，添加到 filters
+                if user_id:
+                    search_params["filters"] = {"user_id": user_id}
+
+                response = self._client.search(**search_params)
+                # 云服务返回格式: {"results": [...]}
+                results = response.get("results", [])
+            else:
+                # 本地存储 API
+                results = self._client.search(
+                    query=query,
+                    user_id=user_id,
+                    limit=limit * 2,
+                )
 
             # 后处理：过滤和排序
             filtered_results = []

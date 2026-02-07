@@ -13,6 +13,7 @@ from src.agent.state import AgentState, AgentAction
 from src.agent.nodes import (
     intent_recognition_node,
     memory_retrieval_node,
+    memory_storage_node,
     tool_selection_node,
     tool_execution_node,
     response_generation_node,
@@ -84,6 +85,7 @@ def create_agent_graph() -> StateGraph:
     workflow.add_node("tool_selection", tool_selection_node)
     workflow.add_node("tool_execution", tool_execution_node)
     workflow.add_node("response_generation", response_generation_node)
+    workflow.add_node("memory_storage", memory_storage_node)
     workflow.add_node("human_feedback", human_feedback_node)
 
     # 设置入口点
@@ -105,8 +107,11 @@ def create_agent_graph() -> StateGraph:
 
     workflow.add_edge("tool_execution", "response_generation")
 
+    # 响应生成后保存记忆，然后判断是否需要反馈
+    workflow.add_edge("response_generation", "memory_storage")
+
     workflow.add_conditional_edges(
-        "response_generation",
+        "memory_storage",
         should_request_feedback,
         {
             "human_feedback": "human_feedback",

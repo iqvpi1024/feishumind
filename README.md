@@ -19,9 +19,10 @@
 
 ## ⭐ 如果你喜欢这个项目，请给个 Star！
 
-<!-- GitHub 链接占位符：请在部署到 GitHub 后替换为实际仓库 URL -->
-<!-- 示例: https://github.com/your-org/feishumind -->
-[![GitHub stars](https://img.shields.io/github/stars/your-org/feishumind?style=social)](https://github.com/your-org/feishumind/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/iqvpi1024/feishumind?style=social)](https://github.com/iqvpi1024/feishumind/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/iqvpi1024/feishumind?style=social)](https://github.com/iqvpi1024/feishumind/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/iqvpi1024/feishumind)](https://github.com/iqvpi1024/feishumind/issues)
+[![GitHub license](https://img.shields.io/github/license/iqvpi1024/feishumind)](https://github.com/iqvpi1024/feishumind/blob/main/LICENSE)
 
 ---
 
@@ -101,8 +102,7 @@
 
 1. **克隆仓库**
 ```bash
-# 请替换为实际的仓库 URL
-git clone https://github.com/your-org/feishumind.git
+git clone https://github.com/iqvpi1024/feishumind.git
 cd feishumind
 ```
 
@@ -349,11 +349,9 @@ asyncio.run(test_chat())
 
 感谢所有贡献者！
 
-<!-- GitHub 贡献者图片占位符 -->
-<!-- 在推送到 GitHub 后取消注释并替换为实际仓库 URL -->
-<!-- <a href="https://github.com/your-org/feishumind/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=your-org/feishumind" />
-</a> -->
+<a href="https://github.com/iqvpi1024/feishumind/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=iqvpi1024/feishumind" />
+</a>
 
 **详细信息**: [CONTRIBUTING.md](./CONTRIBUTING.md)
 
@@ -381,9 +379,7 @@ asyncio.run(test_chat())
 
 ### 开源进度
 
-<!-- GitHub Stars 占位符 -->
-<!-- 在推送到 GitHub 后取消注释并替换为实际 URL -->
-<!-- - ⭐ **GitHub Stars**: [目标 >500](https://github.com/your-org/feishumind/stargazers) -->
+- ⭐ **GitHub Stars**: [目标 >500](https://github.com/iqvpi1024/feishumind/stargazers)
 - 👥 **贡献者**: 1 人 (欢迎加入！)
 - 📅 **开发周期**: 2026-02-04 ~ 2026-02-06 (3 天)
 - 🎯 **v1.0.0 发布**: 2026-02-06
@@ -419,10 +415,8 @@ asyncio.run(test_chat())
 - **邮箱**: support@feishumind.com
 - **飞书社区**: [加入讨论](https://feishu.cn/join-community)
 
-<!-- GitHub 链接占位符 -->
-<!-- 在推送到 GitHub 后取消注释并替换为实际 URL -->
-<!-- - **GitHub Issues**: [报告问题](https://github.com/your-org/feishumind/issues) -->
-<!-- - **GitHub Discussions**: [参与讨论](https://github.com/your-org/feishumind/discussions) -->
+- **GitHub Issues**: [报告问题](https://github.com/iqvpi1024/feishumind/issues)
+- **GitHub Discussions**: [参与讨论](https://github.com/iqvpi1024/feishumind/discussions)
 
 ---
 
@@ -444,9 +438,7 @@ asyncio.run(test_chat())
 
 ## 🌟 Star 历史
 
-<!-- Star History Chart 占位符 -->
-<!-- 在推送到 GitHub 后取消注释并替换为实际仓库 URL -->
-<!-- [![Star History Chart](https://api.star-history.com/svg?repos=your-org/feishumind&type=Date)](https://star-history.com/#your-org/feishumind&Date) -->
+[![Star History Chart](https://api.star-history.com/svg?repos=iqvpi1024/feishumind&type=Date)](https://star-history.com/#iqvpi1024/feishumind&Date)
 
 **如果觉得有用，请给个 ⭐Star 支持一下！**
 

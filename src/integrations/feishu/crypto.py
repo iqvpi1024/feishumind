@@ -49,10 +49,11 @@ class FeishuCrypto:
         self.encrypt_key = encrypt_key
         self.verification_token = verification_token
 
-        # 解码加密 Key
-        self._key = base64.b64decode(encrypt_key)
+        # 飞书的加密方式：直接对 Encrypt Key 字符串进行 SHA256 哈希
+        # 不是先 Base64 解码！
+        self._key = hashlib.sha256(encrypt_key.encode("utf-8")).digest()
 
-        logger.info("Feishu crypto initialized")
+        logger.info(f"Feishu crypto initialized (key: SHA256 of {len(encrypt_key)} chars -> {len(self._key)} bytes)")
 
     def verify_signature(
         self,
@@ -126,10 +127,10 @@ class FeishuCrypto:
             # 提取密文（16 字节之后）
             ciphertext = encrypted_bytes[16:]
 
-            # 创建解密器 (AES-256-CFB)
+            # 创建解密器 (AES-256-CBC)
             cipher = Cipher(
                 algorithms.AES(self._key),
-                modes.CFB(iv),
+                modes.CBC(iv),
                 backend=default_backend(),
             )
             decryptor = cipher.decryptor()
@@ -145,7 +146,10 @@ class FeishuCrypto:
             decrypted_str = decrypted_bytes.decode("utf-8")
             event_data = json.loads(decrypted_str)
 
-            logger.info(f"Event decrypted successfully: {event_data.get('type', 'unknown')}")
+            event_type = event_data.get('type', 'unknown')
+            logger.info(f"Event decrypted successfully: {event_type}")
+            # 打印完整的事件数据（仅打印前500字符）用于调试
+            logger.info(f"Decrypted event data: {decrypted_str[:500]}")
 
             return event_data
 
@@ -181,10 +185,10 @@ class FeishuCrypto:
             import os
             iv = os.urandom(16)
 
-            # 创建加密器 (AES-256-CFB)
+            # 创建加密器 (AES-256-CBC)
             cipher = Cipher(
                 algorithms.AES(self._key),
-                modes.CFB(iv),
+                modes.CBC(iv),
                 backend=default_backend(),
             )
             encryptor = cipher.encryptor()

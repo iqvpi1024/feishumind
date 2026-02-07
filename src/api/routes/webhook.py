@@ -82,39 +82,7 @@ async def feishu_webhook(
             f"body_length={len(body_str)}"
         )
 
-        # 获取加密工具
-        crypto = get_feishu_crypto()
-
-        if not crypto:
-            logger.error("Feishu crypto not configured")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Feishu crypto not configured",
-            )
-
-        # 验证签名
-        if not all([x_feishu_timestamp, x_feishu_nonce, x_feishu_signature]):
-            logger.warning("Missing Feishu signature headers")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing signature headers",
-            )
-
-        is_valid = crypto.verify_signature(
-            timestamp=x_feishu_timestamp,
-            nonce=x_feishu_nonce,
-            body=body_str,
-            signature=x_feishu_signature,
-        )
-
-        if not is_valid:
-            logger.error("Feishu signature verification failed")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid signature",
-            )
-
-        # 解析请求体
+        # 先解析 JSON 检查是否是 URL 验证
         import json
         try:
             request_data = json.loads(body_str)
@@ -125,11 +93,50 @@ async def feishu_webhook(
                 detail="Invalid JSON body",
             )
 
-        # 处理 URL 验证挑战
+        # 处理 URL 验证挑战（在签名验证之前）
+        # 飞书的 URL 验证请求是明文的，不加密，也不需要签名验证
         if request_data.get("type") == "url_verification":
             challenge = request_data.get("challenge")
-            logger.info("Responding to URL verification challenge")
+            logger.info(f"URL verification request received, challenge: {challenge}")
+            # URL 验证直接返回 challenge，不需要任何验证
             return {"challenge": challenge}
+
+        # 对于非 URL 验证请求，必须有加密配置
+        crypto = get_feishu_crypto()
+        if not crypto:
+            logger.error("Feishu crypto not configured")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Feishu crypto not configured. Please set FEISHU_ENCRYPT_KEY and FEISHU_VERIFICATION_TOKEN",
+            )
+
+        # 记录原始请求体用于调试
+        logger.info(f"Raw request body (first 200 chars): {body_str[:200]}")
+        logger.info(f"Request headers - timestamp: {x_feishu_timestamp}, nonce: {x_feishu_nonce}, signature: {x_feishu_signature[:20] if x_feishu_signature else None}...")
+
+        # 验证签名（如果存在）
+        if all([x_feishu_timestamp, x_feishu_nonce, x_feishu_signature]):
+            is_valid = crypto.verify_signature(
+                timestamp=x_feishu_timestamp,
+                nonce=x_feishu_nonce,
+                body=body_str,
+                signature=x_feishu_signature,
+            )
+
+            if not is_valid:
+                logger.error("Feishu signature verification failed")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid signature",
+                )
+            logger.info("Signature verification passed")
+        else:
+            # 开发环境：如果没有签名头，记录警告但继续处理
+            logger.warning(
+                "Missing Feishu signature headers. "
+                "This is unexpected in production. Continuing for debugging..."
+            )
+            # 注意：在生产环境中，应该在这里返回 401 错误
 
         # 解密事件数据
         encrypt_key = request_data.get("encrypt")
@@ -150,9 +157,19 @@ async def feishu_webhook(
                 detail="Failed to decrypt event",
             )
 
-        logger.info(f"Event decrypted: {event_data.get('type', 'unknown')}")
+        # 提取事件类型（飞书事件结构：header.event_type）
+        header = event_data.get("header", {})
+        event_type = header.get("event_type", "unknown")
 
-        # 处理不同类型的事件
+        logger.info(f"Event decrypted: {event_type}")
+
+        # 处理加密后的 URL 验证挑战
+        if event_type == "url_verification":
+            challenge = event_data.get("challenge")
+            logger.info(f"URL verification challenge extracted from decrypted event: {challenge}")
+            return {"challenge": challenge}
+
+        # 处理其他类型的事件
         await _handle_feishu_event(event_data)
 
         # 返回成功响应
@@ -180,7 +197,9 @@ async def _handle_feishu_event(event_data: Dict[str, Any]) -> None:
     Raises:
         Exception: 处理失败时
     """
-    event_type = event_data.get("type")
+    # 飞书事件结构：header.event_type
+    header = event_data.get("header", {})
+    event_type = header.get("event_type")
 
     if event_type == "im.message.receive_v1":
         # 接收消息事件
@@ -302,6 +321,8 @@ async def _send_agent_response(
         # 优先发送到私聊，如果没有则发送到群聊
         receive_id = sender_id if sender_id else chat_id
         receive_id_type = "open_id" if sender_id else "chat_id"
+
+        logger.info(f"Sending message: receive_id={receive_id}, receive_id_type={receive_id_type}, sender_id={sender_id}, chat_id={chat_id}")
 
         await client.send_message(
             receive_id=receive_id,

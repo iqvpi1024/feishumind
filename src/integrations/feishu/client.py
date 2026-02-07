@@ -61,7 +61,7 @@ class FeishuClient:
         self,
         app_id: str,
         app_secret: str,
-        base_url: str = "https://open.feishu.cn",
+        base_url: str = "https://open.feishu.cn/open-apis",
     ):
         """初始化飞书客户端。
 
@@ -195,6 +195,7 @@ class FeishuClient:
         url = f"{self.base_url}/message/v4/send"
 
         # 构建消息体
+        # 飞书 API 要求 content 字段是 JSON 字符串
         if msg_type == "text":
             message_content = {"text": content}
         elif msg_type == "post":
@@ -211,16 +212,22 @@ class FeishuClient:
         else:
             message_content = {"text": content}
 
+        # 将 content 转换为 JSON 字符串（飞书 API 要求）
+        import json
+        content_json = json.dumps(message_content, ensure_ascii=False)
+
         payload = {
             "receive_id": receive_id,
             "msg_type": msg_type,
             "receive_id_type": receive_id_type,
-            "content": message_content,
+            "content": content_json,
         }
 
         headers = {
             "Authorization": f"Bearer {token}",
         }
+
+        logger.info(f"Send message payload: {payload}")
 
         try:
             response = await self._http_client.post(
@@ -231,8 +238,10 @@ class FeishuClient:
             response.raise_for_status()
 
             data = response.json()
+            logger.info(f"Send message API response: {data}")
 
             if data.get("code") != 0:
+                logger.error(f"Send message failed: code={data.get('code')}, msg={data.get('msg')}")
                 raise FeishuAPIError(
                     data.get("msg", "Failed to send message"),
                     data.get("code", -1),

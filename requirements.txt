@@ -9,7 +9,7 @@ langgraph==0.2.0
 langchain==0.2.0
 langchain-community==0.2.0
 # 记忆系统
-mem0ai==0.1.0
+mem0ai==1.0.3
 faiss-cpu==1.8.0
 # 集成工具
 httpx==0.28.0
@@ -29,3 +29,5 @@ jieba==0.42.1
 # HTML解析（GitHub Trending）
 beautifulsoup4==4.12.0
 lxml==5.3.0
+# 飞书开放平台SDK
+lark-oapi==1.5.3

@@ -5,9 +5,11 @@
 """
 
 import logging
+import os
 from typing import Dict, Any, List
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from openai import OpenAI
 
 from src.agent.state import (
     AgentState,
@@ -20,6 +22,21 @@ from src.memory.client import MemoryClient, get_memory_client
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# 初始化 DeepSeek 客户端
+DEEPSEEK_API_KEY = os.getenv("OPENAI_API_KEY")
+DEEPSEEK_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.deepseek.com")
+DEEPSEEK_MODEL = os.getenv("OPENAI_MODEL", "deepseek-chat")
+
+if DEEPSEEK_API_KEY:
+    llm_client = OpenAI(
+        api_key=DEEPSEEK_API_KEY,
+        base_url=DEEPSEEK_BASE_URL,
+    )
+    logger.info(f"DeepSeek LLM client initialized: {DEEPSEEK_MODEL}")
+else:
+    llm_client = None
+    logger.warning("DeepSeek API key not found, LLM features disabled")
 
 
 # ==================== 意图识别节点 ====================
@@ -155,10 +172,10 @@ async def memory_retrieval_node(
 
     except Exception as e:
         logger.error(f"Memory retrieval failed: {e}")
+        # 记忆检索失败不是致命错误，继续处理
         return create_state_update(
             state,
             memory_context=None,
-            error=str(e),
         )
 
 
@@ -417,15 +434,8 @@ def _generate_response(
     Returns:
         str: 响应内容
     """
-    # TODO: 集成 LLM 生成响应
-    # 当前使用模板响应
-
-    if intent == AgentIntent.CHAT:
-        if memory_context and memory_context != "无相关记忆":
-            return f"根据你的记忆：\n{memory_context}\n\n关于你的问题，{user_input}"
-        return f"我理解你说的是：{user_input}"
-
-    elif intent == AgentIntent.REMINDER:
+    # 对于非 CHAT 意图，使用模板响应
+    if intent == AgentIntent.REMINDER:
         if tool_result and tool_result.get("success"):
             return f"✅ 已为你创建提醒：{tool_result.get('title', '')}"
         else:
@@ -450,8 +460,169 @@ def _generate_response(
         else:
             return "抱歉，查询日程失败了。"
 
-    else:
-        return f"我收到了你的消息：{user_input}"
+    # 对于 CHAT 意图，使用 LLM 生成响应
+    if intent == AgentIntent.CHAT:
+        return _generate_llm_response(user_input, memory_context)
+
+    return f"我收到了你的消息：{user_input}"
+
+
+def _generate_llm_response(user_input: str, memory_context: str) -> str:
+    """使用 LLM 生成响应。
+
+    Args:
+        user_input: 用户输入
+        memory_context: 记忆上下文
+
+    Returns:
+        str: LLM 生成的响应
+    """
+    # 如果 LLM 客户端未初始化，使用模板响应
+    if not llm_client:
+        if memory_context and memory_context != "无相关记忆":
+            return f"根据你的记忆：\n{memory_context}\n\n关于你的问题，{user_input}"
+        return f"我理解你说的是：{user_input}"
+
+    try:
+        # 构建系统提示
+        system_prompt = """你是 FeishuMind，一个有情商的职场参谋 AI 助手。
+
+你的特点：
+- 友好、专业、有同理心
+- 能够理解上下文并进行多轮对话
+- 会根据用户的记忆提供个性化建议
+- 回答简洁、直接，避免冗余
+
+回答风格：
+- 使用中文
+- 语气自然、口语化
+- 适当使用 emoji 增加亲和力
+- 避免过度使用专业术语"""
+
+        # 构建用户消息
+        if memory_context and memory_context != "无相关记忆":
+            user_message = f"""用户的相关记忆：
+{memory_context}
+
+用户的问题：{user_input}
+
+请根据用户的记忆和问题，给出友好、有帮助的回答。"""
+        else:
+            user_message = user_input
+
+        # 调用 DeepSeek API
+        logger.info(f"Calling DeepSeek API: {DEEPSEEK_MODEL}")
+        response = llm_client.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            temperature=0.7,
+            max_tokens=1000,
+        )
+
+        # 提取响应内容
+        ai_response = response.choices[0].message.content
+        logger.info(f"DeepSeek response generated: {ai_response[:100]}...")
+
+        return ai_response
+
+    except Exception as e:
+        logger.error(f"LLM response generation failed: {e}")
+        # 降级到模板响应
+        if memory_context and memory_context != "无相关记忆":
+            return f"根据你的记忆：\n{memory_context}\n\n关于你的问题，{user_input}"
+        return f"我理解你说的是：{user_input}"
+
+
+# ==================== 记忆保存节点 ====================
+
+async def memory_storage_node(
+    state: AgentState,
+) -> Dict[str, Any]:
+    """记忆保存节点。
+
+    在对话结束后，将用户消息保存到记忆系统中。
+
+    Args:
+        state: 当前状态
+
+    Returns:
+        Dict[str, Any]: 状态更新
+
+    Examples:
+        >>> state = AgentState.create_initial("user_123", "我喜欢Python")
+        >>> update = await memory_storage_node(state)
+        >>> assert "memory_stored" in update
+    """
+    try:
+        user_id = state["user_id"]
+        latest_message = state["messages"][-1]
+        user_input = latest_message.content
+        intent = state.get("intent")
+
+        # 只对 CHAT 意图保存记忆
+        if intent != AgentIntent.CHAT:
+            logger.info(f"Skipping memory storage for intent: {intent}")
+            return create_state_update(state, next_action=AgentAction.END)
+
+        logger.info(f"Storing memory for {user_id[:4]}***")
+
+        # 获取记忆客户端
+        memory_client: MemoryClient = get_memory_client()
+
+        if not memory_client.is_enabled:
+            logger.warning("Memory system is disabled, skipping storage")
+            return create_state_update(state, next_action=AgentAction.END)
+
+        # 检查是否应该保存记忆
+        # 简单规则：如果包含个人相关信息，则保存
+        should_store = _should_store_memory(user_input)
+
+        if not should_store:
+            logger.info("Message does not contain personal info, skipping storage")
+            return create_state_update(state, next_action=AgentAction.END)
+
+        # 保存记忆
+        memory_id = await memory_client.add_memory(
+            user_id=user_id,
+            content=user_input,
+            category="preference",
+        )
+
+        logger.info(f"Memory stored: {memory_id} for user {user_id[:4]}***")
+
+        return create_state_update(
+            state,
+            next_action=AgentAction.END,
+        )
+
+    except Exception as e:
+        logger.error(f"Memory storage failed: {e}")
+        # 记忆保存失败不影响对话流程
+        return create_state_update(state, next_action=AgentAction.END)
+
+
+def _should_store_memory(text: str) -> bool:
+    """判断文本是否应该被保存到记忆中。
+
+    Args:
+        text: 待判断的文本
+
+    Returns:
+        bool: 是否应该保存
+    """
+    # 简单的关键词匹配
+    keywords = [
+        "我叫", "我是", "我是来自",
+        "住在", "居住在", "生活在",
+        "职业", "工作", "职位",
+        "喜欢", "爱", "爱好",
+        "记得", "记住", "别忘",
+    ]
+
+    return any(keyword in text for keyword in keywords)
 
 
 # ==================== 人类反馈节点 ====================

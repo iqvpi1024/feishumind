@@ -10,7 +10,7 @@
 
 如果你发现了 Bug 或有功能建议：
 
-1. 检查 [Issues](https://github.com/your-org/feishumind/issues) 是否已有类似问题
+1. 检查 [Issues](https://github.com/iqvpi1024/feishumind/issues) 是否已有类似问题
 2. 如果没有，创建新 Issue
 3. 使用清晰的标题和详细的描述
 4. 提供复现步骤（针对 Bug）
@@ -24,7 +24,7 @@
 
 2. **克隆到本地**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/feishumind.git
+   git clone https://github.com/iqvpi1024/feishumind.git
    cd feishumind
    ```
 
@@ -259,7 +259,7 @@ Closes #issue_number
 
 ## 📞 联系方式
 
-- **GitHub Issues**: [提交问题](https://github.com/your-org/feishumind/issues)
+- **GitHub Issues**: [提交问题](https://github.com/iqvpi1024/feishumind/issues)
 - **邮件**: support@feishumind.com
 - **飞书群**: [加入讨论](https://feishu.cn/join-community)
 

@@ -124,7 +124,7 @@ async def chat(request: ChatRequest):
         )
 
         # 检查错误
-        if "error" in result:
+        if result.get("error"):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=result["error"],
@@ -133,7 +133,7 @@ async def chat(request: ChatRequest):
         # 构建响应数据
         response_data = AgentResponse(
             response=result.get("response", ""),
-            intent=result.get("intent", ""),
+            intent=str(result.get("intent", "")),
             tool_used=result.get("tool_name"),
             tool_result=result.get("tool_result"),
             memory_context=result.get("memory_context"),
